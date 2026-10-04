@@ -18,6 +18,7 @@ import { settle, settled, viewportLines } from './lib/term-test.mjs'
 import { stringWidth } from '../src/ink/stringWidth.js'
 // 只借类型（import type 被 tsx 整体擦除，不影响上面 fake-home 的加载顺序）。
 import type { KernelOption } from '../src/components/kernelCatalog.js'
+import { UPSTREAM_VALIDATED_VERSION } from '../src/dsh-adapter/contract.js'
 
 const { Terminal: XTerm } = xterm
 const [
@@ -1007,11 +1008,11 @@ base.close()
   // 版本显示串：产品前缀表（dsh→dsh-core、claude→claude-code）；空/缺省 = undefined
   // （调用方整段省掉，绝不画一个空壳的 v）；未知 id 不编造产品名。
   check('K4b kernelVersionLabel：产品前缀 + 空格 + v + 版本号；空串/缺省 undefined；未知 id 裸版本',
-    kernelVersionLabel('dsh', '0.2.0-rc.2') === 'dsh-core v0.2.0-rc.2'
+    kernelVersionLabel('dsh', UPSTREAM_VALIDATED_VERSION) === `dsh-core v${UPSTREAM_VALIDATED_VERSION}`
       && kernelVersionLabel('claude', '2.0.1') === 'claude-code v2.0.1'
       && kernelVersionLabel('dsh', '') === undefined && kernelVersionLabel('dsh') === undefined
       && kernelVersionLabel('custom', '9.9.9') === '9.9.9',
-    JSON.stringify([kernelVersionLabel('dsh', '0.2.0-rc.2'), kernelVersionLabel('dsh', ''), kernelVersionLabel('custom', '9.9.9')]))
+    JSON.stringify([kernelVersionLabel('dsh', UPSTREAM_VALIDATED_VERSION), kernelVersionLabel('dsh', ''), kernelVersionLabel('custom', '9.9.9')]))
   // 副标题：版本 · 置灰原因——谁有拼谁，两样都没有 = undefined（底栏与选择器共用）。
   const subtitleOf = (input: Parameters<typeof buildKernelCatalog>[0]) => buildKernelCatalog(input).map(option => kernelSubtitle(option, key => 'R:' + key))
   check('K4c kernelSubtitle：版本·原因 / 只有版本 / 只有原因 / 都没有=undefined',
@@ -1740,11 +1741,11 @@ for (const cols of [120, 100, 72, 60, 48]) {
   // ▸、主题蓝），行与行右缘对齐（同一块铭牌带）；kernels 缺省时右侧只有第一行
   // （降级不编造内核号）。底部带满 3 行后，输入框在任何档位都不被挤掉
   // （input-only 档由 D 组钉死；这里再钉 corners 行数）。
-  const s = await openLaunchpad([], { kernels: buildKernelCatalog({ current: 'dsh', dshVersion: '0.2.0-rc.2' }) })
-  await settled(() => s.screen().includes('dsh-core v0.2.0-rc.2'))
+  const s = await openLaunchpad([], { kernels: buildKernelCatalog({ current: 'dsh', dshVersion: UPSTREAM_VALIDATED_VERSION }) })
+  await settled(() => s.screen().includes(`dsh-core v${UPSTREAM_VALIDATED_VERSION}`))
   const lines = viewportLines(s.term)
   const tuiRow = lines.findIndex(l => l.includes(`dsh-tui v${VERSION}`))
-  const kernelRow = lines.findIndex(l => l.includes('dsh-core v0.2.0-rc.2'))
+  const kernelRow = lines.findIndex(l => l.includes(`dsh-core v${UPSTREAM_VALIDATED_VERSION}`))
   check('R4 右下角：TUI 版本在上、内核行紧随其后，两块右缘对齐（同一块铭牌带）',
     tuiRow >= 0 && kernelRow === tuiRow + 1
       && Math.abs(rightGap(lines[tuiRow]!, COLS) - rightGap(lines[kernelRow]!, COLS)) <= 1,
@@ -1772,7 +1773,7 @@ for (const cols of [120, 100, 72, 60, 48]) {
   const MARK = '\u25b8 '
   /** Launchpad 的 KERNEL_CORNER_FOCUS（内核区在焦点环里的编码）。 */
   const KERNEL_FOCUS = -8
-  const probing = buildKernelCatalog({ current: 'dsh', dshVersion: '0.2.0-rc.2' })
+  const probing = buildKernelCatalog({ current: 'dsh', dshVersion: UPSTREAM_VALIDATED_VERSION })
   const ev: Ev[] = []
   const s = await openLaunchpad(ev, { kernels: probing, kernelPick: true })
   await settled(() => s.screen().includes('dsh-tui v' + VERSION))
@@ -1839,14 +1840,14 @@ for (const cols of [120, 100, 72, 60, 48]) {
   s2.close()
   {
     // 已探测「未安装」：置灰原因是未安装（与「检测中…」分得清）。
-    const s3 = await openLaunchpad([], { kernels: buildKernelCatalog({ current: 'dsh', dshVersion: '0.2.0-rc.2', statuses: { claude: { installed: false } } }) })
+    const s3 = await openLaunchpad([], { kernels: buildKernelCatalog({ current: 'dsh', dshVersion: UPSTREAM_VALIDATED_VERSION, statuses: { claude: { installed: false } } }) })
     check('S7 已探测未安装：claude 行显示「未安装」',
       await settled(() => s3.screen().includes(CLAUDE_LABEL + ' · 未安装')), s3.screen().slice(-160))
     s3.close()
   }
   {
     // 已探测可用：版本串是**产品前缀 + 版本号**，且这一行不变暗（可选）。
-    const s4 = await openLaunchpad([], { kernels: buildKernelCatalog({ current: 'dsh', dshVersion: '0.2.0-rc.2', statuses: { claude: { installed: true, auth: 'ok', version: '2.0.1' } } }) })
+    const s4 = await openLaunchpad([], { kernels: buildKernelCatalog({ current: 'dsh', dshVersion: UPSTREAM_VALIDATED_VERSION, statuses: { claude: { installed: true, auth: 'ok', version: '2.0.1' } } }) })
     check('S8 可选内核显示版本串：claude-code v2.0.1（不是裸版本号）',
       await settled(() => s4.screen().includes(CLAUDE_LABEL + ' · claude-code v2.0.1')), s4.screen().slice(-160))
     const lines4 = viewportLines(s4.term)

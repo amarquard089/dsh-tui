@@ -2389,6 +2389,8 @@ const dict = {
   // 第一步：凭证与连通性。分流口径与 adapter 的 CredentialStatus /
   // BalanceResult 一一对应，排查建议按原因分开给，而不是一句"检查网络"。
   'onboarding-key-checking': { zh: '正在读取凭证…', en: 'Reading credentials…' },
+  'onboarding-provider-desc': { zh: '检查已配置的 {{provider}} provider，并读取可用模型。', en: 'Check the configured {{provider}} provider and load its available models.' },
+  'onboarding-provider-configured': { zh: '已配置 {{provider}}', en: '{{provider}} configured' },
   'onboarding-key-configured': { zh: '已检测到 DEEPSEEK_API_KEY', en: 'DEEPSEEK_API_KEY detected' },
   'onboarding-key-source-env': { zh: '来源：环境变量', en: 'Source: environment variable' },
   'onboarding-key-source-config': { zh: '来源：配置文件', en: 'Source: config file' },

@@ -33,6 +33,7 @@ import type { CredentialStatus, EffortOption, LlmModelInfo, LlmProviderInfo } fr
 import type { BalanceResult } from '../adapter/ports/channel-catalog.js'
 import type { TuiThemeHost } from '../dsh-adapter/themes.js'
 import type { TuiWorkspaceTarget } from '../workspaces.js'
+import { isDeepSeekOfficialProvider } from '../deepseekPricing.js'
 
 /** 一次连通性检查的状态机（第一步）。`idle` 只在一瞬间存在——挂载即开跑。 */
 type ConnState =
@@ -124,13 +125,19 @@ export function Onboarding({
     setCredential(undefined)
     setConn({ kind: 'running' })
     void (async () => {
-      const status = await channel.describeCredential('DEEPSEEK_API_KEY').catch(() => undefined)
+      const official = isDeepSeekOfficialProvider(channel.provider)
+      const status = official
+        ? await channel.describeCredential('DEEPSEEK_API_KEY').catch(() => undefined)
+        : undefined
       if (!alive) return
       setCredential(status)
-      const [models, balance] = await Promise.all([
-        channel.listModels().catch(() => [] as readonly LlmModelInfo[]),
-        channel.balanceInfo().catch(() => ({ ok: false, reason: 'network' }) as BalanceResult),
-      ])
+      const models = await channel.listModels().catch(() => [] as readonly LlmModelInfo[])
+      if (!official) {
+        if (!alive) return
+        setConn({ kind: 'ok', models: models.filter(model => model.provider === channel.provider).length, balance: null })
+        return
+      }
+      const balance = await channel.balanceInfo().catch(() => ({ ok: false, reason: 'network' }) as BalanceResult)
       if (!alive) return
       // 连通性的判定口径：余额接口是唯一一次真的打服务端的调用，所以以它
       // 为准；模型列表只用来给成功态添一个数字（某些 provider 会走缓存）。
@@ -449,10 +456,14 @@ export function Onboarding({
       )}
       <Box flexDirection="column" flexGrow={1} flexShrink={1} paddingX={2} paddingTop={1}>
         <Box marginBottom={1}>
-          <Text dimColor wrap="truncate-end">{t(stepDescKey(step) as never)}</Text>
+          <Text dimColor wrap="truncate-end">{
+            step === 'apikey' && !isDeepSeekOfficialProvider(channel.provider)
+              ? t('onboarding-provider-desc', { provider: channel.provider })
+              : t(stepDescKey(step) as never)
+          }</Text>
         </Box>
         {step === 'apikey' && (
-          <ApiKeyStep credential={credential} conn={conn} focusIndex={focusIndex} onRetry={() => setCheckNonce(n => n + 1)} onHover={setFocusIndex} />
+          <ApiKeyStep provider={channel.provider} credential={credential} conn={conn} focusIndex={focusIndex} onRetry={() => setCheckNonce(n => n + 1)} onHover={setFocusIndex} />
         )}
         {step === 'look' && (
           <Box flexDirection="column">
@@ -617,34 +628,37 @@ function PaneTab({
 
 /** 第一步：凭证状态 + 真连通性检查。 */
 function ApiKeyStep({
+  provider,
   credential,
   conn,
   focusIndex,
   onRetry,
   onHover,
 }: {
+  provider: string
   credential: CredentialStatus | undefined
   conn: ConnState
   focusIndex: number
   onRetry: () => void
   onHover: (index: number) => void
 }): React.ReactNode {
+  const official = isDeepSeekOfficialProvider(provider)
   const configured = credential?.configured === true
   return (
     <Box flexDirection="column">
-      <Box>
+      {official ? <Box>
         {credential === undefined
           ? <Text dimColor>{t('onboarding-key-checking')}</Text>
           : configured
             ? <Text color="success">{'✓ ' + t('onboarding-key-configured')}</Text>
             : <Text color="warning">{'✗ ' + t('onboarding-key-missing')}</Text>}
-      </Box>
-      {credential !== undefined && configured && (
+      </Box> : <Text color="success">{'✓ ' + t('onboarding-provider-configured', { provider })}</Text>}
+      {official && credential !== undefined && configured && (
         <Text dimColor>
           {'  ' + credentialSourceText(credential.source)}
         </Text>
       )}
-      {credential !== undefined && !configured && (
+      {official && credential !== undefined && !configured && (
         <Box flexDirection="column" marginTop={1}>
           <Text dimColor>{'  ' + t('onboarding-key-shape')}</Text>
           <Text dimColor>{'  ' + t('onboarding-key-howto-env')}</Text>
